@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80">
+  <rect width="240" height="80" rx="8" fill="#FCF9F1"/>
+  <circle cx="46" cy="40" r="24" fill="#F7F0DF" stroke="#C49A45" stroke-width="2"/>
+  <text x="46" y="45" text-anchor="middle" font-family="Georgia,serif" font-size="14" font-weight="bold" fill="#382B20">SSF</text>
+  <text x="84" y="38" font-family="Georgia,serif" font-size="22" font-weight="bold" fill="#382B20">SSF TKMCE</text>
+  <text x="85" y="54" font-family="Arial,sans-serif" font-size="9" letter-spacing="1.5" fill="#80613A">FAITH · KNOWLEDGE · COMMUNITY</text>
+</svg>
