@@ -20,31 +20,29 @@ import {
   StudentProfile,
   AttendanceRecord,
   TKMCE_DEPARTMENTS,
-  TKMCE_SEMESTERS,
-  RESIDENCE_TYPES,
+  TKMCE_YEARS,
   Department,
-  Semester,
-  ResidenceType,
+  StudentYear,
   loadSessionsFromStorage,
-  loadAttendanceFromStorage,
-  saveAttendanceToStorage,
-  loadStudentProfileFromStorage,
-  saveStudentProfileToStorage,
+  loadCurrentStudentFromStorage,
 } from "@/data/attendance-data";
+import {
+  recordAttendance,
+  getStudentByPhone,
+  getSessionAttendance,
+} from "@/lib/firebase-service";
 
 function AttendanceCheckinContent() {
   const searchParams = useSearchParams();
   const urlSessionId = searchParams.get("s");
   const urlPin = searchParams.get("pin");
 
-  const [sessions, setSessions] = useState<DarsSession[]>([]);
   const [activeSession, setActiveSession] = useState<DarsSession | null>(null);
   const [profile, setProfile] = useState<StudentProfile>({
     fullName: "",
     whatsappNumber: "",
     department: "Computer Science",
-    semester: "S6",
-    residenceType: "Campus Hostel",
+    year: "1st Year",
   });
   const [isReturning, setIsReturning] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -59,7 +57,6 @@ function AttendanceCheckinContent() {
   // Load session and profile data on mount
   useEffect(() => {
     const loadedSessions = loadSessionsFromStorage();
-    setSessions(loadedSessions);
 
     // Pick specified session from URL, or the first 'live' session, or the most recent
     let target = loadedSessions.find((s) => s.id === urlSessionId);
@@ -74,7 +71,7 @@ function AttendanceCheckinContent() {
     }
 
     // Load saved student profile
-    const savedProfile = loadStudentProfileFromStorage();
+    const savedProfile = loadCurrentStudentFromStorage();
     if (savedProfile && savedProfile.fullName && savedProfile.whatsappNumber) {
       setProfile(savedProfile);
       setIsReturning(true);
@@ -82,20 +79,33 @@ function AttendanceCheckinContent() {
 
     // Check if already checked into this session
     if (target) {
-      const records = loadAttendanceFromStorage();
-      const sessionRecords = records.filter((r) => r.sessionId === target.id);
-      setAttendeeCount(sessionRecords.length);
-
-      if (savedProfile) {
-        const existing = sessionRecords.find(
-          (r) => r.student.whatsappNumber === savedProfile.whatsappNumber
-        );
-        if (existing) {
-          setCheckedInRecord(existing);
+      getSessionAttendance(target.id).then((records) => {
+        setAttendeeCount(records.length);
+        if (savedProfile) {
+          const existing = records.find(
+            (r) => r.student.whatsappNumber === savedProfile.whatsappNumber
+          );
+          if (existing) {
+            setCheckedInRecord(existing);
+          }
         }
-      }
+      });
     }
   }, [urlSessionId, urlPin]);
+
+  // Auto-lookup when user types 10-digit phone
+  const handlePhoneChange = async (val: string) => {
+    const clean = val.replace(/\D/g, "");
+    setProfile((prev) => ({ ...prev, whatsappNumber: clean }));
+    setPhoneError("");
+
+    if (clean.length === 10) {
+      const found = await getStudentByPhone(clean);
+      if (found) {
+        setProfile(found);
+      }
+    }
+  };
 
   const validateForm = () => {
     let valid = true;
@@ -109,8 +119,8 @@ function AttendanceCheckinContent() {
     }
 
     const cleanPhone = profile.whatsappNumber.replace(/\D/g, "");
-    if (cleanPhone.length < 10) {
-      setPhoneError("Please enter a valid 10-digit WhatsApp number.");
+    if (cleanPhone.length !== 10) {
+      setPhoneError("Please enter a valid 10-digit WhatsApp phone number.");
       valid = false;
     }
 
@@ -124,7 +134,7 @@ function AttendanceCheckinContent() {
     return valid;
   };
 
-  const handleCheckIn = (e?: React.FormEvent) => {
+  const handleCheckIn = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!activeSession) return;
 
@@ -133,36 +143,26 @@ function AttendanceCheckinContent() {
     setIsSubmitting(true);
 
     try {
-      // Save profile for fast 1-tap return
-      saveStudentProfileToStorage(profile);
+      const cleanPhone = profile.whatsappNumber.replace(/\D/g, "");
+      const cleanProfile: StudentProfile = {
+        ...profile,
+        whatsappNumber: cleanPhone,
+      };
 
-      const records = loadAttendanceFromStorage();
-      // Check for duplicate in session
-      const existing = records.find(
-        (r) =>
-          r.sessionId === activeSession.id &&
-          r.student.whatsappNumber.replace(/\D/g, "") ===
-            profile.whatsappNumber.replace(/\D/g, "")
-      );
+      const result = await recordAttendance(activeSession.id, cleanProfile, "qr_scan");
 
-      if (existing) {
-        setCheckedInRecord(existing);
-        setIsSubmitting(false);
-        return;
-      }
-
-      const newRecord: AttendanceRecord = {
-        id: `att-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      const currentRecord: AttendanceRecord = {
+        id: result.recordId,
         sessionId: activeSession.id,
-        student: profile,
+        student: cleanProfile,
         checkinTime: new Date().toISOString(),
         checkinMethod: "qr_scan",
       };
 
-      const updatedRecords = [newRecord, ...records];
-      saveAttendanceToStorage(updatedRecords);
-      setCheckedInRecord(newRecord);
-      setAttendeeCount((prev) => prev + 1);
+      setCheckedInRecord(currentRecord);
+      if (!result.alreadyRecorded) {
+        setAttendeeCount((prev) => prev + 1);
+      }
     } catch (err) {
       console.error("Check-in error:", err);
     } finally {
@@ -271,15 +271,15 @@ function AttendanceCheckinContent() {
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-emerald-100 py-2">
-                  <span className="text-stone-500">Department & Semester</span>
+                  <span className="text-stone-500">Department</span>
                   <span className="font-semibold text-stone-900">
-                    {checkedInRecord.student.department} ({checkedInRecord.student.semester})
+                    {checkedInRecord.student.department}
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-emerald-100 py-2">
-                  <span className="text-stone-500">Residence</span>
+                  <span className="text-stone-500">Year of Study</span>
                   <span className="font-semibold text-stone-900">
-                    {checkedInRecord.student.residenceType}
+                    {checkedInRecord.student.year}
                   </span>
                 </div>
                 <div className="flex justify-between pt-2">
@@ -343,7 +343,7 @@ function AttendanceCheckinContent() {
                 {profile.fullName}
               </h2>
               <p className="mt-1 text-xs text-[#6f532f]">
-                {profile.department} · {profile.semester} · {profile.residenceType}
+                {profile.department} · {profile.year} · +91 {profile.whatsappNumber}
               </p>
 
               {/* 4-Digit Session PIN Input */}
@@ -353,7 +353,7 @@ function AttendanceCheckinContent() {
                     Today&apos;s 4-Digit Session Code
                   </label>
                   <p className="text-[11px] text-[#80613a]">
-                    Announced on projector/by the coordinator.
+                    Announced on screen or by the coordinator.
                   </p>
                   <input
                     type="text"
@@ -396,12 +396,12 @@ function AttendanceCheckinContent() {
                 className="mt-4 inline-flex items-center gap-1.5 text-xs text-[#80613a] hover:text-[#5a4224] hover:underline"
               >
                 <Edit3 className="h-3.5 w-3.5" />
-                Not you, or need to change batch/hostel details?
+                Not you, or need to update department/year?
               </button>
             </div>
           </div>
         ) : (
-          /* Full Registration / Check-In Form */
+          /* Full 4-Field Check-In Form */
           <form onSubmit={handleCheckIn} className="space-y-5 p-6 sm:p-8">
             <div className="flex items-center justify-between border-b border-[#eedebb] pb-3">
               <div>
@@ -409,7 +409,7 @@ function AttendanceCheckinContent() {
                   {isReturning ? "Update Your Details" : "Quick Student Check-In"}
                 </h2>
                 <p className="text-xs text-[#80613a]">
-                  Takes only 15 seconds. Saved securely on your phone for future 1-tap check-in.
+                  Just 4 fields. Takes 10 seconds and saves to your phone for future 1-tap check-ins.
                 </p>
               </div>
               {isReturning && (
@@ -420,6 +420,29 @@ function AttendanceCheckinContent() {
                 >
                   Cancel
                 </button>
+              )}
+            </div>
+
+            {/* WhatsApp Mobile Number */}
+            <div>
+              <label className="block text-xs font-semibold text-[#5a4224]">
+                WhatsApp Mobile Number <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative mt-1.5">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-xs font-medium text-stone-500">
+                  +91
+                </span>
+                <input
+                  type="tel"
+                  placeholder="98471 23456"
+                  maxLength={10}
+                  value={profile.whatsappNumber}
+                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  className="block w-full rounded-xl border border-[#d6c49f] bg-white pl-12 pr-3.5 py-2.5 text-sm text-[#382b20] placeholder:text-stone-400 focus:border-[#c49a45] focus:outline-hidden focus:ring-2 focus:ring-[#c49a45]/20"
+                />
+              </div>
+              {phoneError && (
+                <p className="mt-1 text-xs font-medium text-rose-600">{phoneError}</p>
               )}
             </div>
 
@@ -440,99 +463,45 @@ function AttendanceCheckinContent() {
               )}
             </div>
 
-            {/* WhatsApp Number */}
+            {/* Department */}
             <div>
               <label className="block text-xs font-semibold text-[#5a4224]">
-                WhatsApp Number <span className="text-rose-500">*</span>
+                Department <span className="text-rose-500">*</span>
               </label>
-              <div className="relative mt-1.5">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-xs font-medium text-stone-500">
-                  +91
-                </span>
-                <input
-                  type="tel"
-                  placeholder="98471 23456"
-                  maxLength={10}
-                  value={profile.whatsappNumber}
-                  onChange={(e) =>
-                    setProfile({ ...profile, whatsappNumber: e.target.value.replace(/\D/g, "") })
-                  }
-                  className="block w-full rounded-xl border border-[#d6c49f] bg-white pl-12 pr-3.5 py-2.5 text-sm text-[#382b20] placeholder:text-stone-400 focus:border-[#c49a45] focus:outline-hidden focus:ring-2 focus:ring-[#c49a45]/20"
-                />
-              </div>
-              {phoneError && (
-                <p className="mt-1 text-xs font-medium text-rose-600">{phoneError}</p>
-              )}
+              <select
+                value={profile.department}
+                onChange={(e) =>
+                  setProfile({ ...profile, department: e.target.value as Department })
+                }
+                className="mt-1.5 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-sm text-[#382b20] focus:border-[#c49a45] focus:outline-hidden focus:ring-2 focus:ring-[#c49a45]/20"
+              >
+                {TKMCE_DEPARTMENTS.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Department & Semester Grid */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-semibold text-[#5a4224]">
-                  Department <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={profile.department}
-                  onChange={(e) =>
-                    setProfile({ ...profile, department: e.target.value as Department })
-                  }
-                  className="mt-1.5 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-sm text-[#382b20] focus:border-[#c49a45] focus:outline-hidden focus:ring-2 focus:ring-[#c49a45]/20"
-                >
-                  {TKMCE_DEPARTMENTS.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#5a4224]">
-                  Semester / Batch <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={profile.semester}
-                  onChange={(e) =>
-                    setProfile({ ...profile, semester: e.target.value as Semester })
-                  }
-                  className="mt-1.5 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-sm text-[#382b20] focus:border-[#c49a45] focus:outline-hidden focus:ring-2 focus:ring-[#c49a45]/20"
-                >
-                  {TKMCE_SEMESTERS.map((sem) => (
-                    <option key={sem} value={sem}>
-                      {sem}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Residence Type */}
+            {/* Year of Study */}
             <div>
               <label className="block text-xs font-semibold text-[#5a4224]">
-                Campus Residence <span className="text-rose-500">*</span>
+                Year of Study <span className="text-rose-500">*</span>
               </label>
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {RESIDENCE_TYPES.map((type) => (
-                  <label
-                    key={type}
-                    className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-xs transition ${
-                      profile.residenceType === type
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {TKMCE_YEARS.map((y) => (
+                  <button
+                    key={y}
+                    type="button"
+                    onClick={() => setProfile({ ...profile, year: y })}
+                    className={`rounded-xl border p-2 text-center text-xs font-medium transition ${
+                      profile.year === y
                         ? "border-[#c49a45] bg-[#faefe0] font-semibold text-[#382b20]"
                         : "border-[#e8d8b4] bg-white text-[#514334] hover:bg-[#fcf9f1]"
                     }`}
                   >
-                    <input
-                      type="radio"
-                      name="residenceType"
-                      value={type}
-                      checked={profile.residenceType === type}
-                      onChange={() =>
-                        setProfile({ ...profile, residenceType: type as ResidenceType })
-                      }
-                      className="accent-[#c49a45]"
-                    />
-                    <span>{type}</span>
-                  </label>
+                    {y}
+                  </button>
                 ))}
               </div>
             </div>
@@ -544,7 +513,7 @@ function AttendanceCheckinContent() {
                   Today&apos;s 4-Digit Session Code <span className="text-rose-500">*</span>
                 </label>
                 <p className="text-[11px] text-[#80613a]">
-                  Enter the 4-digit code displayed on the screen or announced by the coordinator.
+                  Enter the code displayed on screen or announced by the coordinator.
                 </p>
                 <input
                   type="text"

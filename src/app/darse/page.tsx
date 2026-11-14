@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { QrCode, Monitor, Sliders, CheckCircle2 } from "lucide-react";
+import { QrCode, Monitor, Sliders, CheckCircle2, UserCheck } from "lucide-react";
 import { PageBanner } from "@/components/page-banner";
 import { DarseExplorer } from "@/components/darse-explorer";
 import { darseSessions } from "@/data/site-content";
@@ -42,22 +42,30 @@ export default function DarsePage() {
               </h2>
 
               <p className="text-sm text-[#6f532f]">
-                Scan the session QR code using your phone camera during the weekly gathering at TKMCE Prayer Hall. Returning students are verified in 2 seconds.
+                Scan the session QR code using your phone camera during the weekly gathering at TKMCE Prayer Hall. New students enroll in 10 seconds; returning students check in with 1 tap.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
               <Link
                 href="/darse/attendance"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#c49a45] px-5 py-3 text-xs font-semibold text-white shadow-xs transition hover:bg-[#b08734]"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#c49a45] px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#b08734]"
               >
                 <QrCode className="h-4 w-4" />
                 Scan & Check In
               </Link>
 
               <Link
+                href="/students/register"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#d6c49f] bg-[#fcf9f1] px-3.5 py-2.5 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
+              >
+                <UserCheck className="h-4 w-4 text-[#c49a45]" />
+                Enroll Student
+              </Link>
+
+              <Link
                 href="/darse/attendance/live"
-                className="inline-flex items-center gap-2 rounded-xl border border-[#d6c49f] bg-[#fcf9f1] px-4 py-3 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#d6c49f] bg-[#fcf9f1] px-3.5 py-2.5 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
               >
                 <Monitor className="h-4 w-4 text-[#c49a45]" />
                 Projector Mode
@@ -65,7 +73,7 @@ export default function DarsePage() {
 
               <Link
                 href="/darse/attendance/dashboard"
-                className="inline-flex items-center gap-2 rounded-xl border border-[#d6c49f] bg-[#fcf9f1] px-4 py-3 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#d6c49f] bg-[#fcf9f1] px-3.5 py-2.5 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
               >
                 <Sliders className="h-4 w-4 text-[#c49a45]" />
                 Coordinator

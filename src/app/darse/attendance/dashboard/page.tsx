@@ -14,24 +14,24 @@ import {
   Lock,
   Unlock,
   Building2,
-  Home,
   CheckCircle,
   Calendar,
   Eye,
   EyeOff,
   UserCheck,
-  RefreshCw,
+  GraduationCap,
+  Sparkles,
+  ExternalLink,
+  MessageCircle,
 } from "lucide-react";
 import {
   DarsSession,
   AttendanceRecord,
   StudentProfile,
   Department,
-  Semester,
-  ResidenceType,
+  StudentYear,
   TKMCE_DEPARTMENTS,
-  TKMCE_SEMESTERS,
-  RESIDENCE_TYPES,
+  TKMCE_YEARS,
   DEFAULT_COORDINATOR_PIN,
   STORAGE_KEYS,
   loadSessionsFromStorage,
@@ -39,7 +39,14 @@ import {
   loadAttendanceFromStorage,
   saveAttendanceToStorage,
   generateAttendanceCSV,
+  generateStudentDirectoryCSV,
 } from "@/data/attendance-data";
+import {
+  getAllStudents,
+  getSessionAttendance,
+  recordAttendance,
+  registerStudent,
+} from "@/lib/firebase-service";
 
 export default function CoordinatorDashboardPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -47,14 +54,22 @@ export default function CoordinatorDashboardPage() {
   const [showPasscode, setShowPasscode] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string>("");
 
+  const [activeTab, setActiveTab] = useState<"attendance" | "directory">("attendance");
+
   const [sessions, setSessions] = useState<DarsSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [allStudents, setAllStudents] = useState<StudentProfile[]>([]);
 
-  // Filtering & search states
+  // Filtering & search states for attendance
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [filterDept, setFilterDept] = useState<string>("All");
-  const [filterResidence, setFilterResidence] = useState<string>("All");
+  const [filterYear, setFilterYear] = useState<string>("All");
+
+  // Filtering for directory
+  const [dirSearchQuery, setDirSearchQuery] = useState<string>("");
+  const [dirFilterDept, setDirFilterDept] = useState<string>("All");
+  const [dirFilterYear, setDirFilterYear] = useState<string>("All");
 
   // Modals
   const [showNewSessionModal, setShowNewSessionModal] = useState<boolean>(false);
@@ -76,8 +91,7 @@ export default function CoordinatorDashboardPage() {
     fullName: "",
     whatsappNumber: "",
     department: "Computer Science",
-    semester: "S6",
-    residenceType: "Campus Hostel",
+    year: "1st Year",
   });
   const [manualError, setManualError] = useState<string>("");
 
@@ -91,20 +105,27 @@ export default function CoordinatorDashboardPage() {
     }
   }, []);
 
-  // Load sessions and attendance
-  const refreshData = () => {
+  // Load sessions, attendance, and student directory
+  const refreshData = async () => {
     const loadedSessions = loadSessionsFromStorage();
     setSessions(loadedSessions);
 
+    let currentSessId = selectedSessionId;
     if (loadedSessions.length > 0) {
-      if (!selectedSessionId || !loadedSessions.find((s) => s.id === selectedSessionId)) {
+      if (!currentSessId || !loadedSessions.find((s) => s.id === currentSessId)) {
         const live = loadedSessions.find((s) => s.status === "live") || loadedSessions[0];
+        currentSessId = live.id;
         setSelectedSessionId(live.id);
       }
     }
 
-    const loadedRecords = loadAttendanceFromStorage();
-    setRecords(loadedRecords);
+    if (currentSessId) {
+      const loadedRecords = await getSessionAttendance(currentSessId);
+      setRecords(loadedRecords);
+    }
+
+    const students = await getAllStudents();
+    setAllStudents(students);
   };
 
   useEffect(() => {
@@ -112,7 +133,7 @@ export default function CoordinatorDashboardPage() {
       refreshData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, selectedSessionId]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,25 +170,34 @@ export default function CoordinatorDashboardPage() {
         rec.student.department.toLowerCase().includes(q);
 
       const matchesDept = filterDept === "All" || rec.student.department === filterDept;
-      const matchesResidence =
-        filterResidence === "All" || rec.student.residenceType === filterResidence;
+      const matchesYear = filterYear === "All" || rec.student.year === filterYear;
 
-      return matchesSearch && matchesDept && matchesResidence;
+      return matchesSearch && matchesDept && matchesYear;
     });
-  }, [sessionAttendees, searchQuery, filterDept, filterResidence]);
+  }, [sessionAttendees, searchQuery, filterDept, filterYear]);
 
-  // Analytics Metrics
+  const filteredDirectory = useMemo(() => {
+    return allStudents.filter((student) => {
+      const q = dirSearchQuery.toLowerCase();
+      const matchesSearch =
+        student.fullName.toLowerCase().includes(q) ||
+        student.whatsappNumber.includes(q) ||
+        student.department.toLowerCase().includes(q);
+
+      const matchesDept = dirFilterDept === "All" || student.department === dirFilterDept;
+      const matchesYear = dirFilterYear === "All" || student.year === dirFilterYear;
+
+      return matchesSearch && matchesDept && matchesYear;
+    });
+  }, [allStudents, dirSearchQuery, dirFilterDept, dirFilterYear]);
+
+  // Attendance Analytics Metrics
   const metrics = useMemo(() => {
     const total = sessionAttendees.length;
-    const campusHostel = sessionAttendees.filter(
-      (r) => r.student.residenceType === "Campus Hostel"
-    ).length;
-    const privateHostel = sessionAttendees.filter(
-      (r) => r.student.residenceType === "Private Hostel / PG"
-    ).length;
-    const dayScholar = sessionAttendees.filter(
-      (r) => r.student.residenceType === "Day Scholar"
-    ).length;
+    const firstYear = sessionAttendees.filter((r) => r.student.year === "1st Year").length;
+    const secondYear = sessionAttendees.filter((r) => r.student.year === "2nd Year").length;
+    const thirdYear = sessionAttendees.filter((r) => r.student.year === "3rd Year").length;
+    const fourthYear = sessionAttendees.filter((r) => r.student.year === "4th Year").length;
 
     // Department counts
     const deptMap: Record<string, number> = {};
@@ -183,7 +213,7 @@ export default function CoordinatorDashboardPage() {
       }
     });
 
-    return { total, campusHostel, privateHostel, dayScholar, topDept, topDeptCount };
+    return { total, firstYear, secondYear, thirdYear, fourthYear, topDept, topDeptCount };
   }, [sessionAttendees]);
 
   // Toggle Session status (Live <-> Completed)
@@ -224,57 +254,41 @@ export default function CoordinatorDashboardPage() {
   };
 
   // Manual Add Student to Attendance
-  const handleManualAdd = (e: React.FormEvent) => {
+  const handleManualAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentSession) return;
 
-    if (!manualForm.fullName.trim() || manualForm.whatsappNumber.length < 10) {
-      setManualError("Please enter student name and a valid 10-digit number.");
+    if (!manualForm.fullName.trim() || manualForm.whatsappNumber.length !== 10) {
+      setManualError("Please enter full name and a valid 10-digit mobile number.");
       return;
     }
 
-    // Check duplicate
-    const exists = sessionAttendees.some(
-      (r) => r.student.whatsappNumber === manualForm.whatsappNumber
-    );
-    if (exists) {
-      setManualError("This student has already been recorded for this session.");
-      return;
-    }
-
-    const newRec: AttendanceRecord = {
-      id: `att-manual-${Date.now()}`,
-      sessionId: currentSession.id,
-      student: manualForm,
-      checkinTime: new Date().toISOString(),
-      checkinMethod: "manual_coordinator",
+    const cleanPhone = manualForm.whatsappNumber.replace(/\D/g, "");
+    const cleanStudent: StudentProfile = {
+      ...manualForm,
+      whatsappNumber: cleanPhone,
     };
 
-    const updated = [newRec, ...records];
-    setRecords(updated);
-    saveAttendanceToStorage(updated);
+    const result = await recordAttendance(currentSession.id, cleanStudent, "manual_coordinator");
+
+    if (result.alreadyRecorded) {
+      setManualError("This student is already recorded for this session.");
+      return;
+    }
+
     setShowManualAddModal(false);
     setManualForm({
       fullName: "",
       whatsappNumber: "",
       department: "Computer Science",
-      semester: "S6",
-      residenceType: "Campus Hostel",
+      year: "1st Year",
     });
     setManualError("");
+    refreshData();
   };
 
-  // Delete an attendance entry
-  const handleDeleteEntry = (recordId: string) => {
-    if (confirm("Are you sure you want to remove this attendance record?")) {
-      const updated = records.filter((r) => r.id !== recordId);
-      setRecords(updated);
-      saveAttendanceToStorage(updated);
-    }
-  };
-
-  // Export to CSV
-  const handleExportCSV = () => {
+  // Export Attendance to CSV
+  const handleExportAttendanceCSV = () => {
     if (!currentSession) return;
     const csvContent = generateAttendanceCSV(currentSession, records);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -284,6 +298,23 @@ export default function CoordinatorDashboardPage() {
     link.setAttribute(
       "download",
       `ssf-tkmce-darse-attendance-sess${currentSession.sessionNumber}-${currentSession.date}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export Student Directory to CSV
+  const handleExportDirectoryCSV = () => {
+    const csvContent = generateStudentDirectoryCSV(allStudents);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `ssf-tkmce-master-student-directory-${new Date().toISOString().split("T")[0]}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -305,7 +336,7 @@ export default function CoordinatorDashboardPage() {
               Coordinator Access
             </h1>
             <p className="mt-1 text-xs text-[#6f532f]">
-              Enter the coordinator passcode to manage weekly Darse attendance sessions and export records.
+              Enter coordinator passcode to manage weekly Darse attendance sessions and student directory.
             </p>
           </div>
 
@@ -368,10 +399,10 @@ export default function CoordinatorDashboardPage() {
             </div>
             <div>
               <div className="font-serif text-lg font-bold text-[#382b20]">
-                SSF TKMCE · Darse Attendance Coordinator
+                SSF TKMCE · Coordinator Portal
               </div>
               <div className="text-xs text-[#80613a]">
-                Weekly Darse Management & Real-Time Roster
+                Weekly Darse Attendance & Master Student Directory
               </div>
             </div>
           </div>
@@ -386,13 +417,14 @@ export default function CoordinatorDashboardPage() {
               Open Projector View
             </Link>
 
-            <button
-              onClick={() => setShowNewSessionModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#c49a45] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#b08734]"
+            <Link
+              href="/students/register"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#d6c49f] bg-[#f7f0df] px-3.5 py-2 text-xs font-semibold text-[#5a4224] hover:bg-[#faefe0]"
             >
               <PlusCircle className="h-4 w-4" />
-              Start New Session
-            </button>
+              Enroll Student
+            </Link>
 
             <button
               onClick={handleLogout}
@@ -404,280 +436,458 @@ export default function CoordinatorDashboardPage() {
         </div>
       </header>
 
+      {/* Tab Navigation */}
+      <div className="border-b border-[#eedebb] bg-[#fcf9f1]/70 px-6">
+        <div className="mx-auto flex max-w-7xl gap-8">
+          <button
+            onClick={() => setActiveTab("attendance")}
+            className={`border-b-2 py-3.5 text-xs font-bold tracking-wider uppercase transition ${
+              activeTab === "attendance"
+                ? "border-[#c49a45] text-[#382b20]"
+                : "border-transparent text-[#80613a] hover:text-[#382b20]"
+            }`}
+          >
+            Weekly Darse Attendance ({sessionAttendees.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("directory")}
+            className={`border-b-2 py-3.5 text-xs font-bold tracking-wider uppercase transition ${
+              activeTab === "directory"
+                ? "border-[#c49a45] text-[#382b20]"
+                : "border-transparent text-[#80613a] hover:text-[#382b20]"
+            }`}
+          >
+            Student Directory ({allStudents.length})
+          </button>
+        </div>
+      </div>
+
       <div className="mx-auto max-w-7xl px-5 py-8 space-y-6">
-        {/* Session Selector & Status Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="text-xs font-bold tracking-wider text-[#7a5725] uppercase">
-              Select Session:
-            </label>
-            <select
-              value={selectedSessionId}
-              onChange={(e) => setSelectedSessionId(e.target.value)}
-              className="rounded-xl border border-[#d6c49f] bg-white px-3 py-2 text-xs font-semibold text-[#382b20] focus:border-[#c49a45] focus:outline-hidden"
-            >
-              {sessions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  #{s.sessionNumber} — {s.title} ({s.date})
-                </option>
-              ))}
-            </select>
+        {/* ========================================================================= */}
+        {/* TAB 1: WEEKLY DARSE ATTENDANCE */}
+        {/* ========================================================================= */}
+        {activeTab === "attendance" && (
+          <>
+            {/* Session Selector & Controls Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="text-xs font-bold tracking-wider text-[#7a5725] uppercase">
+                  Select Session:
+                </label>
+                <select
+                  value={selectedSessionId}
+                  onChange={(e) => setSelectedSessionId(e.target.value)}
+                  className="rounded-xl border border-[#d6c49f] bg-white px-3 py-2 text-xs font-semibold text-[#382b20] focus:border-[#c49a45] focus:outline-hidden"
+                >
+                  {sessions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      #{s.sessionNumber} — {s.title} ({s.date})
+                    </option>
+                  ))}
+                </select>
 
-            {currentSession && (
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
-                  currentSession.status === "live"
-                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                    : "bg-amber-100 text-amber-800 border border-amber-300"
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    currentSession.status === "live"
-                      ? "bg-emerald-600 animate-pulse"
-                      : "bg-amber-600"
-                  }`}
-                />
-                {currentSession.status === "live" ? "Live for Check-ins" : "Completed / Locked"}
-              </span>
-            )}
-          </div>
-
-          {currentSession && (
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleSessionStatus}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-                  currentSession.status === "live"
-                    ? "border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100"
-                    : "border-emerald-400 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
-                }`}
-              >
-                {currentSession.status === "live" ? (
-                  <>
-                    <StopCircle className="h-4 w-4" /> End Session Check-ins
-                  </>
-                ) : (
-                  <>
-                    <PlayCircle className="h-4 w-4" /> Re-open Live Session
-                  </>
+                {currentSession && (
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                      currentSession.status === "live"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                        : "bg-amber-100 text-amber-800 border border-amber-300"
+                    }`}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        currentSession.status === "live"
+                          ? "bg-emerald-600 animate-pulse"
+                          : "bg-amber-600"
+                      }`}
+                    />
+                    {currentSession.status === "live" ? "Live for Check-ins" : "Completed / Locked"}
+                  </span>
                 )}
-              </button>
+              </div>
 
-              <div className="flex items-center gap-2 rounded-xl border border-[#eedebb] bg-[#f7f0df] px-3 py-1.5 text-xs">
-                <span className="text-[#80613a]">Session PIN:</span>
-                <span className="font-mono font-bold text-[#382b20]">
-                  {currentSession.sessionPin || "None"}
-                </span>
+              {currentSession && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleSessionStatus}
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+                      currentSession.status === "live"
+                        ? "border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                        : "border-emerald-400 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+                    }`}
+                  >
+                    {currentSession.status === "live" ? (
+                      <>
+                        <StopCircle className="h-4 w-4" /> End Session Check-ins
+                      </>
+                    ) : (
+                      <>
+                        <PlayCircle className="h-4 w-4" /> Re-open Live Session
+                      </>
+                    )}
+                  </button>
+
+                  <div className="flex items-center gap-2 rounded-xl border border-[#eedebb] bg-[#f7f0df] px-3 py-1.5 text-xs">
+                    <span className="text-[#80613a]">Passcode:</span>
+                    <span className="font-mono font-bold text-[#382b20]">
+                      {currentSession.sessionPin || "None"}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => setShowNewSessionModal(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#c49a45] px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[#b08734]"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    New Session
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Attendance Analytics Metric Cards */}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+                <div className="flex items-center justify-between text-xs text-[#80613a]">
+                  <span>Total Present</span>
+                  <Users className="h-4 w-4 text-[#c49a45]" />
+                </div>
+                <div className="mt-2 font-serif text-3xl font-bold text-[#382b20]">
+                  {metrics.total}
+                </div>
+                <div className="mt-1 text-[11px] text-[#6f532f]">Checked in for today</div>
+              </div>
+
+              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+                <div className="flex items-center justify-between text-xs text-[#80613a]">
+                  <span>1st & 2nd Years</span>
+                  <GraduationCap className="h-4 w-4 text-[#c49a45]" />
+                </div>
+                <div className="mt-2 font-serif text-3xl font-bold text-[#382b20]">
+                  {metrics.firstYear + metrics.secondYear}
+                </div>
+                <div className="mt-1 text-[11px] text-[#6f532f]">Junior engineers attending</div>
+              </div>
+
+              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+                <div className="flex items-center justify-between text-xs text-[#80613a]">
+                  <span>3rd & 4th Years</span>
+                  <Building2 className="h-4 w-4 text-[#c49a45]" />
+                </div>
+                <div className="mt-2 font-serif text-3xl font-bold text-[#382b20]">
+                  {metrics.thirdYear + metrics.fourthYear}
+                </div>
+                <div className="mt-1 text-[11px] text-[#6f532f]">Senior engineers attending</div>
+              </div>
+
+              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+                <div className="flex items-center justify-between text-xs text-[#80613a]">
+                  <span>Top Department</span>
+                  <UserCheck className="h-4 w-4 text-[#c49a45]" />
+                </div>
+                <div className="mt-2 font-serif text-xl font-bold text-[#382b20] truncate">
+                  {metrics.topDept}
+                </div>
+                <div className="mt-1 text-[11px] text-[#6f532f]">
+                  {metrics.topDeptCount} students attending
+                </div>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Analytics Summary Metric Cards */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
-            <div className="flex items-center justify-between text-xs text-[#80613a]">
-              <span>Total Attendees</span>
-              <Users className="h-4 w-4 text-[#c49a45]" />
-            </div>
-            <div className="mt-2 font-serif text-3xl font-bold text-[#382b20]">
-              {metrics.total}
-            </div>
-            <div className="mt-1 text-[11px] text-[#6f532f]">Recorded for this session</div>
-          </div>
+            {/* Attendance Filter & Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 shadow-2xs">
+              <div className="flex flex-1 flex-wrap items-center gap-3">
+                <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+                  <Search className="absolute inset-y-0 left-0 my-auto ml-3 h-4 w-4 text-stone-400" />
+                  <input
+                    type="text"
+                    placeholder="Search attendee by name or phone..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-xl border border-[#d6c49f] bg-white pl-9 pr-3 py-1.5 text-xs text-[#382b20] focus:border-[#c49a45] focus:outline-hidden"
+                  />
+                </div>
 
-          <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
-            <div className="flex items-center justify-between text-xs text-[#80613a]">
-              <span>Campus Hostelers</span>
-              <Building2 className="h-4 w-4 text-[#c49a45]" />
-            </div>
-            <div className="mt-2 font-serif text-3xl font-bold text-[#382b20]">
-              {metrics.campusHostel}
-            </div>
-            <div className="mt-1 text-[11px] text-[#6f532f]">
-              {metrics.total > 0
-                ? `${Math.round((metrics.campusHostel / metrics.total) * 100)}% of attendance`
-                : "0%"}
-            </div>
-          </div>
+                <select
+                  value={filterDept}
+                  onChange={(e) => setFilterDept(e.target.value)}
+                  className="rounded-xl border border-[#d6c49f] bg-white px-3 py-1.5 text-xs text-[#5a4224]"
+                >
+                  <option value="All">All Departments</option>
+                  {TKMCE_DEPARTMENTS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
 
-          <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
-            <div className="flex items-center justify-between text-xs text-[#80613a]">
-              <span>Private PG / Hostels</span>
-              <Home className="h-4 w-4 text-[#c49a45]" />
-            </div>
-            <div className="mt-2 font-serif text-3xl font-bold text-[#382b20]">
-              {metrics.privateHostel}
-            </div>
-            <div className="mt-1 text-[11px] text-[#6f532f]">Off-campus hostelers</div>
-          </div>
+                <select
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(e.target.value)}
+                  className="rounded-xl border border-[#d6c49f] bg-white px-3 py-1.5 text-xs text-[#5a4224]"
+                >
+                  <option value="All">All Years</option>
+                  {TKMCE_YEARS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
-            <div className="flex items-center justify-between text-xs text-[#80613a]">
-              <span>Day Scholars</span>
-              <UserCheck className="h-4 w-4 text-[#c49a45]" />
-            </div>
-            <div className="mt-2 font-serif text-3xl font-bold text-[#382b20]">
-              {metrics.dayScholar}
-            </div>
-            <div className="mt-1 text-[11px] text-[#6f532f]">Local college commuters</div>
-          </div>
-        </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowManualAddModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#d6c49f] bg-[#f7f0df] px-3.5 py-1.5 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
+                >
+                  <PlusCircle className="h-3.5 w-3.5" />
+                  Manual Check-In
+                </button>
 
-        {/* Filter and Action Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 shadow-2xs">
-          <div className="flex flex-1 flex-wrap items-center gap-3">
-            {/* Search Input */}
-            <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-              <Search className="absolute inset-y-0 left-0 my-auto ml-3 h-4 w-4 text-stone-400" />
-              <input
-                type="text"
-                placeholder="Search student or phone..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-[#d6c49f] bg-white pl-9 pr-3 py-1.5 text-xs text-[#382b20] focus:border-[#c49a45] focus:outline-hidden"
-              />
+                <button
+                  onClick={handleExportAttendanceCSV}
+                  disabled={sessionAttendees.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#c49a45] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#b08734] disabled:opacity-50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Export Attendance CSV
+                </button>
+              </div>
             </div>
 
-            {/* Department Filter */}
-            <select
-              value={filterDept}
-              onChange={(e) => setFilterDept(e.target.value)}
-              className="rounded-xl border border-[#d6c49f] bg-white px-3 py-1.5 text-xs text-[#5a4224] focus:border-[#c49a45] focus:outline-hidden"
-            >
-              <option value="All">All Departments</option>
-              {TKMCE_DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+            {/* Attendance Roster Table */}
+            <div className="overflow-hidden rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] shadow-2xs">
+              <div className="border-b border-[#eedebb] px-6 py-4">
+                <h2 className="font-serif text-lg font-bold text-[#382b20]">
+                  Session Attendee Roster ({filteredAttendees.length})
+                </h2>
+                <p className="text-xs text-[#80613a]">
+                  Verified attendees for {currentSession?.title}
+                </p>
+              </div>
 
-            {/* Residence Filter */}
-            <select
-              value={filterResidence}
-              onChange={(e) => setFilterResidence(e.target.value)}
-              className="rounded-xl border border-[#d6c49f] bg-white px-3 py-1.5 text-xs text-[#5a4224] focus:border-[#c49a45] focus:outline-hidden"
-            >
-              <option value="All">All Residences</option>
-              {RESIDENCE_TYPES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowManualAddModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#d6c49f] bg-[#f7f0df] px-3.5 py-1.5 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
-            >
-              <PlusCircle className="h-3.5 w-3.5" />
-              Manual Add
-            </button>
-
-            <button
-              onClick={handleExportCSV}
-              disabled={sessionAttendees.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#c49a45] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#b08734] disabled:opacity-50"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Export CSV
-            </button>
-          </div>
-        </div>
-
-        {/* Attendance Roster Table */}
-        <div className="overflow-hidden rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] shadow-2xs">
-          <div className="border-b border-[#eedebb] px-6 py-4">
-            <h2 className="font-serif text-lg font-bold text-[#382b20]">
-              Attendee Roster ({filteredAttendees.length})
-            </h2>
-            <p className="text-xs text-[#80613a]">
-              Chronological log of verified attendees for {currentSession?.title}
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-[#eedebb] bg-[#f7f0df] text-[#5a4224] uppercase">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">#</th>
-                  <th className="px-5 py-3 font-semibold">Student Name</th>
-                  <th className="px-5 py-3 font-semibold">WhatsApp</th>
-                  <th className="px-5 py-3 font-semibold">Dept & Batch</th>
-                  <th className="px-5 py-3 font-semibold">Residence</th>
-                  <th className="px-5 py-3 font-semibold">Check-in Time</th>
-                  <th className="px-5 py-3 font-semibold">Method</th>
-                  <th className="px-5 py-3 font-semibold text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#eedebb]/70">
-                {filteredAttendees.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-[#80613a]">
-                      No student attendance recorded matching current filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredAttendees.map((rec, index) => {
-                    const timeFormatted = new Date(rec.checkinTime).toLocaleTimeString("en-IN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    });
-                    return (
-                      <tr key={rec.id} className="hover:bg-[#faefe0]/60 transition-colors">
-                        <td className="px-5 py-3.5 font-medium text-stone-500">{index + 1}</td>
-                        <td className="px-5 py-3.5 font-semibold text-[#382b20]">
-                          {rec.student.fullName}
-                        </td>
-                        <td className="px-5 py-3.5 font-mono text-stone-700">
-                          +91 {rec.student.whatsappNumber}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span className="inline-flex items-center gap-1 rounded-md bg-[#f7f0df] px-2 py-0.5 text-[11px] font-medium text-[#5a4224]">
-                            {rec.student.department} · {rec.student.semester}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 text-stone-700">
-                          {rec.student.residenceType}
-                        </td>
-                        <td className="px-5 py-3.5 font-mono text-stone-600">
-                          {timeFormatted}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
-                              rec.checkinMethod === "qr_scan"
-                                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                : "bg-sky-50 text-sky-800 border border-sky-200"
-                            }`}
-                          >
-                            {rec.checkinMethod === "qr_scan" ? "QR Camera" : "Manual"}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteEntry(rec.id)}
-                            title="Delete this record"
-                            className="rounded-lg p-1 text-stone-400 hover:bg-rose-50 hover:text-rose-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-[#eedebb] bg-[#f7f0df] text-[#5a4224] uppercase">
+                    <tr>
+                      <th className="px-5 py-3 font-semibold">#</th>
+                      <th className="px-5 py-3 font-semibold">Student Name</th>
+                      <th className="px-5 py-3 font-semibold">WhatsApp</th>
+                      <th className="px-5 py-3 font-semibold">Department</th>
+                      <th className="px-5 py-3 font-semibold">Year of Study</th>
+                      <th className="px-5 py-3 font-semibold">Check-in Time</th>
+                      <th className="px-5 py-3 font-semibold">Method</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#eedebb]/70">
+                    {filteredAttendees.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center text-sm text-[#80613a]">
+                          No student attendance recorded matching current filters.
                         </td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                    ) : (
+                      filteredAttendees.map((rec, index) => {
+                        const timeFormatted = new Date(rec.checkinTime).toLocaleTimeString("en-IN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        });
+                        return (
+                          <tr key={rec.id} className="hover:bg-[#faefe0]/60 transition-colors">
+                            <td className="px-5 py-3.5 font-medium text-stone-500">{index + 1}</td>
+                            <td className="px-5 py-3.5 font-semibold text-[#382b20]">
+                              {rec.student.fullName}
+                            </td>
+                            <td className="px-5 py-3.5 font-mono text-stone-700">
+                              <a
+                                href={`https://wa.me/91${rec.student.whatsappNumber}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-emerald-700 hover:underline"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                +91 {rec.student.whatsappNumber}
+                              </a>
+                            </td>
+                            <td className="px-5 py-3.5 text-stone-800">
+                              {rec.student.department}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="inline-flex items-center gap-1 rounded-md bg-[#f7f0df] px-2 py-0.5 text-[11px] font-medium text-[#5a4224]">
+                                {rec.student.year}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 font-mono text-stone-600">
+                              {timeFormatted}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
+                                  rec.checkinMethod === "qr_scan"
+                                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                    : "bg-sky-50 text-sky-800 border border-sky-200"
+                                }`}
+                              >
+                                {rec.checkinMethod === "qr_scan" ? "QR Camera" : "Manual"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 2: MASTER STUDENT DIRECTORY */}
+        {/* ========================================================================= */}
+        {activeTab === "directory" && (
+          <div className="space-y-6">
+            {/* Directory Overview Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+              <div>
+                <h2 className="font-serif text-xl font-bold text-[#382b20]">
+                  Campus Student Master Directory ({allStudents.length})
+                </h2>
+                <p className="text-xs text-[#80613a]">
+                  Stored permanently in Google Firestore. Syncs to Google Sheets for team sharing.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Link
+                  href="/students/register"
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#c49a45] bg-[#f7f0df] px-3.5 py-2 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
+                >
+                  <PlusCircle className="h-4 w-4 text-[#c49a45]" />
+                  Enroll New Student
+                </Link>
+
+                <button
+                  onClick={handleExportDirectoryCSV}
+                  disabled={allStudents.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#c49a45] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#b08734] disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Export Directory CSV
+                </button>
+              </div>
+            </div>
+
+            {/* Filter and Search Bar for Directory */}
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 shadow-2xs">
+              <div className="flex flex-1 flex-wrap items-center gap-3">
+                <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+                  <Search className="absolute inset-y-0 left-0 my-auto ml-3 h-4 w-4 text-stone-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by student name or mobile..."
+                    value={dirSearchQuery}
+                    onChange={(e) => setDirSearchQuery(e.target.value)}
+                    className="w-full rounded-xl border border-[#d6c49f] bg-white pl-9 pr-3 py-1.5 text-xs text-[#382b20] focus:border-[#c49a45] focus:outline-hidden"
+                  />
+                </div>
+
+                <select
+                  value={dirFilterDept}
+                  onChange={(e) => setDirFilterDept(e.target.value)}
+                  className="rounded-xl border border-[#d6c49f] bg-white px-3 py-1.5 text-xs text-[#5a4224]"
+                >
+                  <option value="All">All Departments</option>
+                  {TKMCE_DEPARTMENTS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={dirFilterYear}
+                  onChange={(e) => setDirFilterYear(e.target.value)}
+                  className="rounded-xl border border-[#d6c49f] bg-white px-3 py-1.5 text-xs text-[#5a4224]"
+                >
+                  <option value="All">All Years</option>
+                  {TKMCE_YEARS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Student Directory Table */}
+            <div className="overflow-hidden rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] shadow-2xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-[#eedebb] bg-[#f7f0df] text-[#5a4224] uppercase">
+                    <tr>
+                      <th className="px-5 py-3 font-semibold">#</th>
+                      <th className="px-5 py-3 font-semibold">Full Name</th>
+                      <th className="px-5 py-3 font-semibold">WhatsApp Number</th>
+                      <th className="px-5 py-3 font-semibold">Department</th>
+                      <th className="px-5 py-3 font-semibold">Year of Study</th>
+                      <th className="px-5 py-3 font-semibold">Registered Date</th>
+                      <th className="px-5 py-3 font-semibold text-right">Quick Contact</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#eedebb]/70">
+                    {filteredDirectory.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center text-sm text-[#80613a]">
+                          No students found matching current filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDirectory.map((student, index) => (
+                        <tr key={student.whatsappNumber} className="hover:bg-[#faefe0]/60 transition-colors">
+                          <td className="px-5 py-3.5 font-medium text-stone-500">{index + 1}</td>
+                          <td className="px-5 py-3.5 font-semibold text-[#382b20]">
+                            {student.fullName}
+                          </td>
+                          <td className="px-5 py-3.5 font-mono text-stone-700">
+                            +91 {student.whatsappNumber}
+                          </td>
+                          <td className="px-5 py-3.5 text-stone-800">
+                            {student.department}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-[#f7f0df] px-2.5 py-0.5 text-[11px] font-medium text-[#5a4224]">
+                              {student.year}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 text-stone-500">
+                            {student.registeredAt
+                              ? new Date(student.registeredAt).toLocaleDateString("en-IN")
+                              : "Earlier"}
+                          </td>
+                          <td className="px-5 py-3.5 text-right">
+                            <a
+                              href={`https://wa.me/91${student.whatsappNumber}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                            >
+                              <MessageCircle className="h-3 w-3" />
+                              WhatsApp
+                            </a>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Start New Session Modal */}
@@ -789,7 +999,7 @@ export default function CoordinatorDashboardPage() {
         </div>
       )}
 
-      {/* Manual Add Student Modal */}
+      {/* Manual Add Student Modal (4 Clean Fields) */}
       {showManualAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-6 shadow-xl">
@@ -797,7 +1007,7 @@ export default function CoordinatorDashboardPage() {
               Manual Student Check-In
             </h3>
             <p className="mt-1 text-xs text-[#6f532f]">
-              For students attending without a smartphone or experiencing network issues.
+              For students attending without a smartphone or experiencing battery issues.
             </p>
 
             <form onSubmit={handleManualAdd} className="mt-5 space-y-4">
@@ -819,7 +1029,7 @@ export default function CoordinatorDashboardPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-[#5a4224]">
-                  WhatsApp Number *
+                  WhatsApp Mobile Number *
                 </label>
                 <input
                   type="tel"
@@ -850,7 +1060,7 @@ export default function CoordinatorDashboardPage() {
                         department: e.target.value as Department,
                       })
                     }
-                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3 py-2 text-xs text-[#382b20]"
+                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-xs text-[#382b20]"
                   >
                     {TKMCE_DEPARTMENTS.map((d) => (
                       <option key={d} value={d}>
@@ -862,47 +1072,25 @@ export default function CoordinatorDashboardPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-[#5a4224]">
-                    Semester
+                    Year of Study
                   </label>
                   <select
-                    value={manualForm.semester}
+                    value={manualForm.year}
                     onChange={(e) =>
                       setManualForm({
                         ...manualForm,
-                        semester: e.target.value as Semester,
+                        year: e.target.value as StudentYear,
                       })
                     }
-                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3 py-2 text-xs text-[#382b20]"
+                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-xs text-[#382b20]"
                   >
-                    {TKMCE_SEMESTERS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
+                    {TKMCE_YEARS.map((y) => (
+                      <option key={y} value={y}>
+                        {y}
                       </option>
                     ))}
                   </select>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#5a4224]">
-                  Residence
-                </label>
-                <select
-                  value={manualForm.residenceType}
-                  onChange={(e) =>
-                    setManualForm({
-                      ...manualForm,
-                      residenceType: e.target.value as ResidenceType,
-                    })
-                  }
-                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3 py-2 text-xs text-[#382b20]"
-                >
-                  {RESIDENCE_TYPES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               {manualError && (

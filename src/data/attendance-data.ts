@@ -1,6 +1,35 @@
 // ============================================================================
-// SSF TKMCE — Weekly Darse QR Attendance System Data & Helpers
+// SSF TKMCE — Student Directory & Weekly Darse Attendance System
 // ============================================================================
+
+export type Department =
+  | "Computer Science"
+  | "Mechanical"
+  | "Civil"
+  | "Electrical & Electronics"
+  | "Electronics & Comm"
+  | "Chemical"
+  | "Production"
+  | "Architecture"
+  | "MCA"
+  | "Other";
+
+export type StudentYear =
+  | "1st Year"
+  | "2nd Year"
+  | "3rd Year"
+  | "4th Year"
+  | "M.Tech / PG"
+  | "Alumni";
+
+export interface StudentProfile {
+  fullName: string;
+  whatsappNumber: string; // 10-digit unique identifier
+  department: Department;
+  year: StudentYear;
+  registeredAt?: string;
+  residenceType?: string; // Optional legacy field
+}
 
 export interface DarsSession {
   id: string;
@@ -15,41 +44,6 @@ export interface DarsSession {
   topicPoints: string[];
   arabicQuote?: string;
   transliteration?: string;
-}
-
-export type Department =
-  | "Civil"
-  | "Mechanical"
-  | "Electrical & Electronics"
-  | "Electronics & Comm"
-  | "Computer Science"
-  | "Chemical"
-  | "Production"
-  | "Architecture"
-  | "MCA"
-  | "Other";
-
-export type Semester =
-  | "S1"
-  | "S2"
-  | "S3"
-  | "S4"
-  | "S5"
-  | "S6"
-  | "S7"
-  | "S8"
-  | "M.Tech"
-  | "PhD"
-  | "Alumni";
-
-export type ResidenceType = "Campus Hostel" | "Private Hostel / PG" | "Day Scholar";
-
-export interface StudentProfile {
-  fullName: string;
-  whatsappNumber: string;
-  department: Department;
-  semester: Semester;
-  residenceType: ResidenceType;
 }
 
 export interface AttendanceRecord {
@@ -73,24 +67,13 @@ export const TKMCE_DEPARTMENTS: Department[] = [
   "Other",
 ];
 
-export const TKMCE_SEMESTERS: Semester[] = [
-  "S1",
-  "S2",
-  "S3",
-  "S4",
-  "S5",
-  "S6",
-  "S7",
-  "S8",
-  "M.Tech",
-  "PhD",
+export const TKMCE_YEARS: StudentYear[] = [
+  "1st Year",
+  "2nd Year",
+  "3rd Year",
+  "4th Year",
+  "M.Tech / PG",
   "Alumni",
-];
-
-export const RESIDENCE_TYPES: ResidenceType[] = [
-  "Campus Hostel",
-  "Private Hostel / PG",
-  "Day Scholar",
 ];
 
 export const DEFAULT_COORDINATOR_PIN = "SSF@TKM2026";
@@ -109,8 +92,8 @@ export const initialSessions: DarsSession[] = [
     sessionPin: "4819",
     topicPoints: [
       "Guardianship of thoughts and intention (Niyyah)",
-      "Balancing rigorous academic pressure with inner tranquility",
-      "Brotherhood and mutual support among hostelers and day-scholars",
+      "Balancing rigorous engineering pressure with inner tranquility",
+      "Brotherhood and mutual support among campus peers",
     ],
     arabicQuote: "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
     transliteration: "Alā bidhikri Allāhi tatma'innu al-qulūb",
@@ -133,99 +116,91 @@ export const initialSessions: DarsSession[] = [
     arabicQuote: "مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ بِهِ طَرِيقًا إِلَى الْجَنَّةِ",
     transliteration: "Man salaka tareeqan yaltamisu feehi 'ilman sahhala Allahu lahu bihi tareeqan ila al-Jannah",
   },
+];
+
+// Initial pre-seeded students
+export const initialStudents: StudentProfile[] = [
   {
-    id: "sess-2026-w40",
-    sessionNumber: 40,
-    title: "Living the Sunnah in Contemporary Campus Life",
-    speaker: "Usthad Rashid Hudawi",
-    location: "TKMCE Campus Prayer Hall",
-    date: "2026-11-05",
-    time: "Thursday after Maghrib (7:00 PM)",
-    status: "completed",
-    sessionPin: "2950",
-    topicPoints: [
-      "Character in speech, digital conduct, and online spaces",
-      "Punctuality and barakah in time management during semester exams",
-    ],
-    arabicQuote: "إِنَّمَا بُعِثْتُ لِأُتَمِّمَ مَكَارِمَ الْأَخْلَاقِ",
-    transliteration: "Innama bu'ithtu li-utammima makarim al-akhlaq",
+    fullName: "Mohammed Bilal K.",
+    whatsappNumber: "9847123456",
+    department: "Mechanical",
+    year: "3rd Year",
+    registeredAt: "2026-11-10T10:00:00.000Z",
+  },
+  {
+    fullName: "Ameer Suhail",
+    whatsappNumber: "9745234567",
+    department: "Computer Science",
+    year: "2nd Year",
+    registeredAt: "2026-11-11T12:30:00.000Z",
+  },
+  {
+    fullName: "Faris Rahman",
+    whatsappNumber: "9495345678",
+    department: "Civil",
+    year: "4th Year",
+    registeredAt: "2026-11-11T14:15:00.000Z",
+  },
+  {
+    fullName: "Rinshid V.P.",
+    whatsappNumber: "9567456789",
+    department: "Electrical & Electronics",
+    year: "3rd Year",
+    registeredAt: "2026-11-12T09:20:00.000Z",
+  },
+  {
+    fullName: "Naseem Akhtar",
+    whatsappNumber: "9895567890",
+    department: "Electronics & Comm",
+    year: "1st Year",
+    registeredAt: "2026-11-12T16:45:00.000Z",
   },
 ];
 
-// Pre-seeded attendees for demonstration
+// Pre-seeded attendees
 export const initialAttendanceRecords: AttendanceRecord[] = [
   {
     id: "att-101",
     sessionId: "sess-2026-w42",
-    student: {
-      fullName: "Mohammed Bilal K.",
-      whatsappNumber: "9847123456",
-      department: "Mechanical",
-      semester: "S6",
-      residenceType: "Campus Hostel",
-    },
+    student: initialStudents[0],
     checkinTime: "2026-11-14T19:05:22.000Z",
     checkinMethod: "qr_scan",
   },
   {
     id: "att-102",
     sessionId: "sess-2026-w42",
-    student: {
-      fullName: "Ameer Suhail",
-      whatsappNumber: "9745234567",
-      department: "Computer Science",
-      semester: "S4",
-      residenceType: "Private Hostel / PG",
-    },
+    student: initialStudents[1],
     checkinTime: "2026-11-14T19:08:14.000Z",
     checkinMethod: "qr_scan",
   },
   {
     id: "att-103",
     sessionId: "sess-2026-w42",
-    student: {
-      fullName: "Faris Rahman",
-      whatsappNumber: "9495345678",
-      department: "Civil",
-      semester: "S8",
-      residenceType: "Day Scholar",
-    },
+    student: initialStudents[2],
     checkinTime: "2026-11-14T19:12:45.000Z",
     checkinMethod: "qr_scan",
   },
   {
     id: "att-104",
     sessionId: "sess-2026-w42",
-    student: {
-      fullName: "Rinshid V.P.",
-      whatsappNumber: "9567456789",
-      department: "Electrical & Electronics",
-      semester: "S6",
-      residenceType: "Campus Hostel",
-    },
+    student: initialStudents[3],
     checkinTime: "2026-11-14T19:15:02.000Z",
     checkinMethod: "qr_scan",
   },
   {
     id: "att-105",
     sessionId: "sess-2026-w42",
-    student: {
-      fullName: "Naseem Akhtar",
-      whatsappNumber: "9895567890",
-      department: "Electronics & Comm",
-      semester: "S2",
-      residenceType: "Private Hostel / PG",
-    },
+    student: initialStudents[4],
     checkinTime: "2026-11-14T19:18:33.000Z",
     checkinMethod: "qr_scan",
   },
 ];
 
-// Local storage key constants
 export const STORAGE_KEYS = {
   SESSIONS: "ssf_tkmce_dars_sessions",
+  STUDENTS: "ssf_tkmce_students_master",
   ATTENDANCE: "ssf_tkmce_dars_attendance",
-  STUDENT_PROFILE: "ssf_tkmce_student_profile",
+  CURRENT_STUDENT: "ssf_tkmce_student_profile",
   COORDINATOR_AUTH: "ssf_tkmce_coordinator_auth",
 };
 
@@ -253,6 +228,29 @@ export function saveSessionsToStorage(sessions: DarsSession[]): void {
   }
 }
 
+export function loadStudentsFromStorage(): StudentProfile[] {
+  if (typeof window === "undefined") return initialStudents;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(initialStudents));
+      return initialStudents;
+    }
+    return JSON.parse(raw);
+  } catch {
+    return initialStudents;
+  }
+}
+
+export function saveStudentsToStorage(students: StudentProfile[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  } catch (err) {
+    console.error("Failed to save students to localStorage:", err);
+  }
+}
+
 export function loadAttendanceFromStorage(): AttendanceRecord[] {
   if (typeof window === "undefined") return initialAttendanceRecords;
   try {
@@ -276,26 +274,26 @@ export function saveAttendanceToStorage(records: AttendanceRecord[]): void {
   }
 }
 
-export function loadStudentProfileFromStorage(): StudentProfile | null {
+export function loadCurrentStudentFromStorage(): StudentProfile | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.STUDENT_PROFILE);
+    const raw = localStorage.getItem(STORAGE_KEYS.CURRENT_STUDENT);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
 
-export function saveStudentProfileToStorage(profile: StudentProfile): void {
+export function saveCurrentStudentToStorage(profile: StudentProfile): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEYS.STUDENT_PROFILE, JSON.stringify(profile));
+    localStorage.setItem(STORAGE_KEYS.CURRENT_STUDENT, JSON.stringify(profile));
   } catch (err) {
-    console.error("Failed to save profile to localStorage:", err);
+    console.error("Failed to save student profile to localStorage:", err);
   }
 }
 
-// Export attendance list to CSV format
+// Generate CSV for Attendance
 export function generateAttendanceCSV(session: DarsSession, records: AttendanceRecord[]): string {
   const sessionRecords = records.filter((r) => r.sessionId === session.id);
   const headers = [
@@ -303,8 +301,7 @@ export function generateAttendanceCSV(session: DarsSession, records: AttendanceR
     "Student Name",
     "WhatsApp Number",
     "Department",
-    "Semester",
-    "Residence",
+    "Year of Study",
     "Check-in Time",
     "Method",
     "Session Title",
@@ -323,12 +320,39 @@ export function generateAttendanceCSV(session: DarsSession, records: AttendanceR
       `"${r.student.fullName.replace(/"/g, '""')}"`,
       `"${r.student.whatsappNumber}"`,
       `"${r.student.department}"`,
-      `"${r.student.semester}"`,
-      `"${r.student.residenceType}"`,
+      `"${r.student.year}"`,
       `"${timeFormatted}"`,
       `"${r.checkinMethod}"`,
       `"${session.title.replace(/"/g, '""')}"`,
       `"${session.date}"`,
+    ].join(",");
+  });
+
+  return [headers.join(","), ...rows].join("\r\n");
+}
+
+// Generate CSV for Master Student Directory
+export function generateStudentDirectoryCSV(students: StudentProfile[]): string {
+  const headers = [
+    "Sl No",
+    "Student Name",
+    "WhatsApp Number",
+    "Department",
+    "Year of Study",
+    "Registration Date",
+  ];
+
+  const rows = students.map((s, index) => {
+    const dateFormatted = s.registeredAt
+      ? new Date(s.registeredAt).toLocaleDateString("en-IN")
+      : "Earlier";
+    return [
+      index + 1,
+      `"${s.fullName.replace(/"/g, '""')}"`,
+      `"${s.whatsappNumber}"`,
+      `"${s.department}"`,
+      `"${s.year}"`,
+      `"${dateFormatted}"`,
     ].join(",");
   });
 

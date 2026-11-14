@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useRef, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import QRCode from "qrcode";
 import {
   Users,
   Clock,
   MapPin,
-  RefreshCw,
   Maximize2,
   Minimize2,
   Copy,
@@ -15,13 +14,14 @@ import {
   ShieldCheck,
   ExternalLink,
   Sliders,
+  Sparkles,
 } from "lucide-react";
 import {
   DarsSession,
   AttendanceRecord,
   loadSessionsFromStorage,
-  loadAttendanceFromStorage,
 } from "@/data/attendance-data";
+import { subscribeToLiveAttendance } from "@/lib/firebase-service";
 
 export default function LiveProjectorPage() {
   const [sessions, setSessions] = useState<DarsSession[]>([]);
@@ -34,7 +34,6 @@ export default function LiveProjectorPage() {
   const [isDynamic, setIsDynamic] = useState<boolean>(false);
   const [autoSecondsLeft, setAutoSecondsLeft] = useState<number>(45);
   const [, startTransition] = useTransition();
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load sessions on mount
   useEffect(() => {
@@ -44,23 +43,16 @@ export default function LiveProjectorPage() {
     setActiveSession(live || null);
   }, []);
 
-  // Update attendance count & recent records periodically
+  // Real-time Firestore Live Subscription for Attendance
   useEffect(() => {
     if (!activeSession) return;
 
-    const refreshAttendance = () => {
-      const records = loadAttendanceFromStorage();
-      const sessionRecords = records.filter((r) => r.sessionId === activeSession.id);
-      setAttendanceCount(sessionRecords.length);
-      setRecentAttendees(sessionRecords.slice(0, 5));
-    };
+    const unsubscribe = subscribeToLiveAttendance(activeSession.id, (records) => {
+      setAttendanceCount(records.length);
+      setRecentAttendees(records.slice(0, 6));
+    });
 
-    refreshAttendance();
-    pollIntervalRef.current = setInterval(refreshAttendance, 3000);
-
-    return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-    };
+    return () => unsubscribe();
   }, [activeSession]);
 
   // Generate QR Code
@@ -70,7 +62,6 @@ export default function LiveProjectorPage() {
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ssf-tkmce.vercel.app";
     let targetUrl = `${origin}/darse/attendance?s=${encodeURIComponent(activeSession.id)}`;
 
-    // In static mode, include PIN directly if configured, or omit to require entering it
     if (activeSession.sessionPin) {
       targetUrl += `&pin=${encodeURIComponent(activeSession.sessionPin)}`;
     }
@@ -236,6 +227,10 @@ export default function LiveProjectorPage() {
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-600 animate-pulse" />
                 CHECK-IN OPEN
               </span>
+              <span className="inline-flex items-center gap-1 text-xs text-[#80613a]">
+                <Sparkles className="h-3.5 w-3.5 text-[#c49a45]" />
+                Google Firestore Live Sync
+              </span>
             </div>
 
             {/* Arabic Motto Header */}
@@ -296,10 +291,10 @@ export default function LiveProjectorPage() {
                 <div className="text-right">
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
                     <span className="h-2 w-2 rounded-full bg-emerald-600 animate-ping" />
-                    Auto-syncing
+                    Cloud Real-Time
                   </div>
                   <div className="mt-1 text-[11px] text-[#80613a]">
-                    Updates in real-time
+                    Updates instantly as phones scan
                   </div>
                 </div>
               </div>
@@ -317,7 +312,7 @@ export default function LiveProjectorPage() {
                         className="inline-flex items-center gap-1.5 rounded-full border border-[#d6c49f] bg-white px-3 py-1 text-xs font-medium text-[#382b20] shadow-2xs"
                       >
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                        {att.student.fullName} ({att.student.department})
+                        {att.student.fullName} ({att.student.department} · {att.student.year})
                       </span>
                     ))}
                   </div>
@@ -335,7 +330,7 @@ export default function LiveProjectorPage() {
                       Today&apos;s Session Passcode
                     </div>
                     <div className="text-xs text-[#80613a]">
-                      Students must verify this 4-digit code to complete check-in
+                      Students verify this 4-digit code to submit attendance
                     </div>
                   </div>
                 </div>
@@ -374,7 +369,7 @@ export default function LiveProjectorPage() {
 
               {/* Instructions below QR */}
               <p className="mt-4 text-xs font-medium text-[#6f532f]">
-                Point camera at code · Open link · 1-tap confirmation
+                Point phone camera · Open link · 1-tap confirmation
               </p>
 
               {/* Dynamic QR Mode Toggle */}
