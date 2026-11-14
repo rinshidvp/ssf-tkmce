@@ -488,7 +488,7 @@ function AttendanceCheckinContent() {
               <label className="block text-xs font-semibold text-[#5a4224]">
                 Year of Study <span className="text-rose-500">*</span>
               </label>
-              <div className="mt-2 grid grid-cols-3 gap-2">
+              <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {TKMCE_YEARS.map((y) => (
                   <button
                     key={y}

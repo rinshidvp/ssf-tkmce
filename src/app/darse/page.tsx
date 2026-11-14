@@ -46,7 +46,7 @@ export default function DarsePage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2.5 w-full lg:w-auto">
               <Link
                 href="/darse/attendance"
                 className="inline-flex items-center gap-2 rounded-xl bg-[#c49a45] px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#b08734]"

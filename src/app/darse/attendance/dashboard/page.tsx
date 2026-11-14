@@ -10,19 +10,16 @@ import {
   PlayCircle,
   StopCircle,
   Monitor,
-  Trash2,
   Lock,
   Unlock,
   Building2,
-  CheckCircle,
-  Calendar,
   Eye,
   EyeOff,
   UserCheck,
   GraduationCap,
-  Sparkles,
-  ExternalLink,
   MessageCircle,
+  Clock,
+  Sparkles,
 } from "lucide-react";
 import {
   DarsSession,
@@ -36,8 +33,6 @@ import {
   STORAGE_KEYS,
   loadSessionsFromStorage,
   saveSessionsToStorage,
-  loadAttendanceFromStorage,
-  saveAttendanceToStorage,
   generateAttendanceCSV,
   generateStudentDirectoryCSV,
 } from "@/data/attendance-data";
@@ -45,7 +40,6 @@ import {
   getAllStudents,
   getSessionAttendance,
   recordAttendance,
-  registerStudent,
 } from "@/lib/firebase-service";
 
 export default function CoordinatorDashboardPage() {
@@ -325,8 +319,8 @@ export default function CoordinatorDashboardPage() {
   // Login Gate if not authenticated
   if (!isAuthenticated) {
     return (
-      <main className="flex min-h-[85vh] items-center justify-center bg-[#faf3e3] p-6">
-        <div className="w-full max-w-md rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-8 shadow-xs">
+      <main className="flex min-h-[85vh] items-center justify-center bg-[#faf3e3] p-4 sm:p-6">
+        <div className="w-full max-w-md rounded-3xl border border-[#e8d8b4] bg-[#fcf9f1] p-6 sm:p-8 shadow-xs">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#c49a45]/40 bg-[#f7f0df] text-[#c49a45]">
             <Lock className="h-7 w-7" />
           </div>
@@ -368,7 +362,7 @@ export default function CoordinatorDashboardPage() {
 
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#c49a45] px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#b08734]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#c49a45] px-4 py-3 text-sm font-semibold text-white shadow-xs transition hover:bg-[#b08734]"
             >
               <Unlock className="h-4 w-4" />
               Unlock Dashboard
@@ -391,44 +385,44 @@ export default function CoordinatorDashboardPage() {
   return (
     <main className="min-h-screen bg-[#faf3e3] text-[#382b20]">
       {/* Top Coordinator Header */}
-      <header className="border-b border-[#e8d8b4] bg-[#fcf9f1] px-6 py-4">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[#c49a45] bg-[#f7f0df] font-serif text-sm font-bold text-[#382b20]">
+      <header className="border-b border-[#e8d8b4] bg-[#fcf9f1] px-4 py-3 sm:px-6 sm:py-4">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-[#c49a45] bg-[#f7f0df] font-serif text-xs font-bold text-[#382b20] sm:h-10 sm:w-10 sm:text-sm">
               SSF
             </div>
             <div>
-              <div className="font-serif text-lg font-bold text-[#382b20]">
-                SSF TKMCE · Coordinator Portal
+              <div className="font-serif text-base font-bold text-[#382b20] sm:text-lg">
+                SSF TKMCE Coordinator
               </div>
-              <div className="text-xs text-[#80613a]">
-                Weekly Darse Attendance & Master Student Directory
+              <div className="text-[11px] text-[#80613a] sm:text-xs">
+                Attendance & Student Directory
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/darse/attendance/live"
               target="_blank"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#c49a45] bg-[#f7f0df] px-3.5 py-2 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#c49a45] bg-[#f7f0df] px-3 py-1.5 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
             >
-              <Monitor className="h-4 w-4 text-[#c49a45]" />
-              Open Projector View
+              <Monitor className="h-3.5 w-3.5 text-[#c49a45]" />
+              <span className="hidden sm:inline">Projector View</span>
             </Link>
 
             <Link
               href="/students/register"
               target="_blank"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#d6c49f] bg-[#f7f0df] px-3.5 py-2 text-xs font-semibold text-[#5a4224] hover:bg-[#faefe0]"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#d6c49f] bg-[#f7f0df] px-3 py-1.5 text-xs font-semibold text-[#5a4224] hover:bg-[#faefe0]"
             >
-              <PlusCircle className="h-4 w-4" />
-              Enroll Student
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span>Enroll</span>
             </Link>
 
             <button
               onClick={handleLogout}
-              className="rounded-xl border border-[#d6c49f] px-3 py-2 text-xs text-[#80613a] hover:bg-[#f7f0df]"
+              className="rounded-xl border border-[#d6c49f] px-3 py-1.5 text-xs text-[#80613a] hover:bg-[#f7f0df]"
             >
               Lock
             </button>
@@ -437,21 +431,21 @@ export default function CoordinatorDashboardPage() {
       </header>
 
       {/* Tab Navigation */}
-      <div className="border-b border-[#eedebb] bg-[#fcf9f1]/70 px-6">
-        <div className="mx-auto flex max-w-7xl gap-8">
+      <div className="border-b border-[#eedebb] bg-[#fcf9f1]/70 px-4 sm:px-6">
+        <div className="mx-auto flex max-w-7xl gap-6 sm:gap-8">
           <button
             onClick={() => setActiveTab("attendance")}
-            className={`border-b-2 py-3.5 text-xs font-bold tracking-wider uppercase transition ${
+            className={`border-b-2 py-3 text-xs font-bold tracking-wider uppercase transition ${
               activeTab === "attendance"
                 ? "border-[#c49a45] text-[#382b20]"
                 : "border-transparent text-[#80613a] hover:text-[#382b20]"
             }`}
           >
-            Weekly Darse Attendance ({sessionAttendees.length})
+            Darse Attendance ({sessionAttendees.length})
           </button>
           <button
             onClick={() => setActiveTab("directory")}
-            className={`border-b-2 py-3.5 text-xs font-bold tracking-wider uppercase transition ${
+            className={`border-b-2 py-3 text-xs font-bold tracking-wider uppercase transition ${
               activeTab === "directory"
                 ? "border-[#c49a45] text-[#382b20]"
                 : "border-transparent text-[#80613a] hover:text-[#382b20]"
@@ -462,17 +456,17 @@ export default function CoordinatorDashboardPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-5 py-8 space-y-6">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 space-y-6">
         {/* ========================================================================= */}
         {/* TAB 1: WEEKLY DARSE ATTENDANCE */}
         {/* ========================================================================= */}
         {activeTab === "attendance" && (
           <>
             {/* Session Selector & Controls Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
-              <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5 shadow-2xs">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                 <label className="text-xs font-bold tracking-wider text-[#7a5725] uppercase">
-                  Select Session:
+                  Session:
                 </label>
                 <select
                   value={selectedSessionId}
@@ -488,7 +482,7 @@ export default function CoordinatorDashboardPage() {
 
                 {currentSession && (
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                    className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
                       currentSession.status === "live"
                         ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                         : "bg-amber-100 text-amber-800 border border-amber-300"
@@ -501,7 +495,7 @@ export default function CoordinatorDashboardPage() {
                           : "bg-amber-600"
                       }`}
                     />
-                    {currentSession.status === "live" ? "Live for Check-ins" : "Completed / Locked"}
+                    {currentSession.status === "live" ? "Live" : "Locked"}
                   </span>
                 )}
               </div>
@@ -511,7 +505,7 @@ export default function CoordinatorDashboardPage() {
                   <button
                     type="button"
                     onClick={toggleSessionStatus}
-                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
                       currentSession.status === "live"
                         ? "border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100"
                         : "border-emerald-400 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
@@ -519,17 +513,17 @@ export default function CoordinatorDashboardPage() {
                   >
                     {currentSession.status === "live" ? (
                       <>
-                        <StopCircle className="h-4 w-4" /> End Session Check-ins
+                        <StopCircle className="h-4 w-4" /> End Session
                       </>
                     ) : (
                       <>
-                        <PlayCircle className="h-4 w-4" /> Re-open Live Session
+                        <PlayCircle className="h-4 w-4" /> Re-open Live
                       </>
                     )}
                   </button>
 
-                  <div className="flex items-center gap-2 rounded-xl border border-[#eedebb] bg-[#f7f0df] px-3 py-1.5 text-xs">
-                    <span className="text-[#80613a]">Passcode:</span>
+                  <div className="flex items-center gap-1.5 rounded-xl border border-[#eedebb] bg-[#f7f0df] px-3 py-2 text-xs">
+                    <span className="text-[#80613a]">PIN:</span>
                     <span className="font-mono font-bold text-[#382b20]">
                       {currentSession.sessionPin || "None"}
                     </span>
@@ -537,82 +531,88 @@ export default function CoordinatorDashboardPage() {
 
                   <button
                     onClick={() => setShowNewSessionModal(true)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#c49a45] px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[#b08734]"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#c49a45] px-3 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#b08734]"
                   >
-                    <PlusCircle className="h-4 w-4" />
-                    New Session
+                    <PlusCircle className="h-3.5 w-3.5" />
+                    New
                   </button>
                 </div>
               )}
             </div>
 
             {/* Attendance Analytics Metric Cards */}
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 sm:p-5 shadow-2xs">
                 <div className="flex items-center justify-between text-xs text-[#80613a]">
                   <span>Total Present</span>
                   <Users className="h-4 w-4 text-[#c49a45]" />
                 </div>
-                <div className="mt-2 font-serif text-3xl font-bold text-[#382b20]">
+                <div className="mt-2 font-serif text-2xl font-bold text-[#382b20] sm:text-3xl">
                   {metrics.total}
                 </div>
-                <div className="mt-1 text-[11px] text-[#6f532f]">Checked in for today</div>
+                <div className="mt-1 text-[10px] text-[#6f532f] sm:text-[11px]">
+                  Checked in today
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 sm:p-5 shadow-2xs">
                 <div className="flex items-center justify-between text-xs text-[#80613a]">
                   <span>1st & 2nd Years</span>
                   <GraduationCap className="h-4 w-4 text-[#c49a45]" />
                 </div>
-                <div className="mt-2 font-serif text-3xl font-bold text-[#382b20]">
+                <div className="mt-2 font-serif text-2xl font-bold text-[#382b20] sm:text-3xl">
                   {metrics.firstYear + metrics.secondYear}
                 </div>
-                <div className="mt-1 text-[11px] text-[#6f532f]">Junior engineers attending</div>
+                <div className="mt-1 text-[10px] text-[#6f532f] sm:text-[11px]">
+                  Junior engineers
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 sm:p-5 shadow-2xs">
                 <div className="flex items-center justify-between text-xs text-[#80613a]">
                   <span>3rd & 4th Years</span>
                   <Building2 className="h-4 w-4 text-[#c49a45]" />
                 </div>
-                <div className="mt-2 font-serif text-3xl font-bold text-[#382b20]">
+                <div className="mt-2 font-serif text-2xl font-bold text-[#382b20] sm:text-3xl">
                   {metrics.thirdYear + metrics.fourthYear}
                 </div>
-                <div className="mt-1 text-[11px] text-[#6f532f]">Senior engineers attending</div>
+                <div className="mt-1 text-[10px] text-[#6f532f] sm:text-[11px]">
+                  Senior engineers
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+              <div className="rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 sm:p-5 shadow-2xs">
                 <div className="flex items-center justify-between text-xs text-[#80613a]">
                   <span>Top Department</span>
                   <UserCheck className="h-4 w-4 text-[#c49a45]" />
                 </div>
-                <div className="mt-2 font-serif text-xl font-bold text-[#382b20] truncate">
+                <div className="mt-2 font-serif text-lg font-bold text-[#382b20] truncate sm:text-xl">
                   {metrics.topDept}
                 </div>
-                <div className="mt-1 text-[11px] text-[#6f532f]">
-                  {metrics.topDeptCount} students attending
+                <div className="mt-1 text-[10px] text-[#6f532f] sm:text-[11px]">
+                  {metrics.topDeptCount} students
                 </div>
               </div>
             </div>
 
             {/* Attendance Filter & Action Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 shadow-2xs">
-              <div className="flex flex-1 flex-wrap items-center gap-3">
-                <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+            <div className="flex flex-col gap-3 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 sm:flex-row sm:items-center sm:justify-between shadow-2xs">
+              <div className="flex flex-1 flex-wrap items-center gap-2 sm:gap-3">
+                <div className="relative w-full sm:w-auto sm:min-w-[200px]">
                   <Search className="absolute inset-y-0 left-0 my-auto ml-3 h-4 w-4 text-stone-400" />
                   <input
                     type="text"
-                    placeholder="Search attendee by name or phone..."
+                    placeholder="Search name or phone..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full rounded-xl border border-[#d6c49f] bg-white pl-9 pr-3 py-1.5 text-xs text-[#382b20] focus:border-[#c49a45] focus:outline-hidden"
+                    className="w-full rounded-xl border border-[#d6c49f] bg-white pl-9 pr-3 py-2 text-xs text-[#382b20] focus:border-[#c49a45] focus:outline-hidden"
                   />
                 </div>
 
                 <select
                   value={filterDept}
                   onChange={(e) => setFilterDept(e.target.value)}
-                  className="rounded-xl border border-[#d6c49f] bg-white px-3 py-1.5 text-xs text-[#5a4224]"
+                  className="w-full rounded-xl border border-[#d6c49f] bg-white px-3 py-2 text-xs text-[#5a4224] sm:w-auto"
                 >
                   <option value="All">All Departments</option>
                   {TKMCE_DEPARTMENTS.map((d) => (
@@ -625,7 +625,7 @@ export default function CoordinatorDashboardPage() {
                 <select
                   value={filterYear}
                   onChange={(e) => setFilterYear(e.target.value)}
-                  className="rounded-xl border border-[#d6c49f] bg-white px-3 py-1.5 text-xs text-[#5a4224]"
+                  className="w-full rounded-xl border border-[#d6c49f] bg-white px-3 py-2 text-xs text-[#5a4224] sm:w-auto"
                 >
                   <option value="All">All Years</option>
                   {TKMCE_YEARS.map((y) => (
@@ -639,7 +639,7 @@ export default function CoordinatorDashboardPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowManualAddModal(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#d6c49f] bg-[#f7f0df] px-3.5 py-1.5 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#d6c49f] bg-[#f7f0df] px-3.5 py-2 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
                 >
                   <PlusCircle className="h-3.5 w-3.5" />
                   Manual Check-In
@@ -648,26 +648,78 @@ export default function CoordinatorDashboardPage() {
                 <button
                   onClick={handleExportAttendanceCSV}
                   disabled={sessionAttendees.length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#c49a45] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#b08734] disabled:opacity-50"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#c49a45] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#b08734] disabled:opacity-50"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  Export Attendance CSV
+                  CSV
                 </button>
               </div>
             </div>
 
-            {/* Attendance Roster Table */}
+            {/* Attendance Roster — Responsive Mobile Card View + Desktop Table */}
             <div className="overflow-hidden rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] shadow-2xs">
-              <div className="border-b border-[#eedebb] px-6 py-4">
-                <h2 className="font-serif text-lg font-bold text-[#382b20]">
-                  Session Attendee Roster ({filteredAttendees.length})
+              <div className="border-b border-[#eedebb] px-4 py-3.5 sm:px-6 sm:py-4">
+                <h2 className="font-serif text-base font-bold text-[#382b20] sm:text-lg">
+                  Attendee Roster ({filteredAttendees.length})
                 </h2>
-                <p className="text-xs text-[#80613a]">
+                <p className="text-[11px] text-[#80613a] sm:text-xs">
                   Verified attendees for {currentSession?.title}
                 </p>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* Mobile Card List (sm:hidden) */}
+              <div className="divide-y divide-[#eedebb]/70 sm:hidden">
+                {filteredAttendees.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-[#80613a]">
+                    No attendees match current filters.
+                  </div>
+                ) : (
+                  filteredAttendees.map((rec, index) => {
+                    const timeFormatted = new Date(rec.checkinTime).toLocaleTimeString("en-IN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    });
+                    return (
+                      <div key={rec.id} className="p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-serif font-bold text-sm text-[#382b20]">
+                            #{index + 1}. {rec.student.fullName}
+                          </span>
+                          <span className="font-mono text-[11px] text-stone-500">
+                            {timeFormatted}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                          <span className="rounded-md bg-[#f7f0df] px-2 py-0.5 text-[11px] font-semibold text-[#5a4224]">
+                            {rec.student.department}
+                          </span>
+                          <span className="rounded-md bg-[#faefe0] px-2 py-0.5 text-[11px] font-medium text-[#7a5725]">
+                            {rec.student.year}
+                          </span>
+                          <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                            {rec.checkinMethod === "qr_scan" ? "QR Camera" : "Manual"}
+                          </span>
+                        </div>
+                        <div className="pt-1">
+                          <a
+                            href={`https://wa.me/91${rec.student.whatsappNumber}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-mono text-emerald-700 hover:underline"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            +91 {rec.student.whatsappNumber}
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Desktop Table (hidden sm:block) */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="border-b border-[#eedebb] bg-[#f7f0df] text-[#5a4224] uppercase">
                     <tr>
@@ -750,24 +802,24 @@ export default function CoordinatorDashboardPage() {
         {activeTab === "directory" && (
           <div className="space-y-6">
             {/* Directory Overview Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-5 shadow-2xs">
+            <div className="flex flex-col gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5 shadow-2xs">
               <div>
-                <h2 className="font-serif text-xl font-bold text-[#382b20]">
-                  Campus Student Master Directory ({allStudents.length})
+                <h2 className="font-serif text-lg font-bold text-[#382b20] sm:text-xl">
+                  Student Master Directory ({allStudents.length})
                 </h2>
-                <p className="text-xs text-[#80613a]">
-                  Stored permanently in Google Firestore. Syncs to Google Sheets for team sharing.
+                <p className="text-[11px] text-[#80613a] sm:text-xs">
+                  Active in Google Firestore. Always accessible 24/7/365.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2">
                 <Link
                   href="/students/register"
                   target="_blank"
                   className="inline-flex items-center gap-1.5 rounded-xl border border-[#c49a45] bg-[#f7f0df] px-3.5 py-2 text-xs font-semibold text-[#5a4224] transition hover:bg-[#faefe0]"
                 >
                   <PlusCircle className="h-4 w-4 text-[#c49a45]" />
-                  Enroll New Student
+                  Enroll Student
                 </Link>
 
                 <button
@@ -776,29 +828,29 @@ export default function CoordinatorDashboardPage() {
                   className="inline-flex items-center gap-1.5 rounded-xl bg-[#c49a45] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#b08734] disabled:opacity-50"
                 >
                   <Download className="h-4 w-4" />
-                  Export Directory CSV
+                  Export CSV
                 </button>
               </div>
             </div>
 
             {/* Filter and Search Bar for Directory */}
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 shadow-2xs">
-              <div className="flex flex-1 flex-wrap items-center gap-3">
-                <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+            <div className="flex flex-col gap-3 rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-4 sm:flex-row sm:items-center sm:justify-between shadow-2xs">
+              <div className="flex flex-1 flex-wrap items-center gap-2 sm:gap-3">
+                <div className="relative w-full sm:w-auto sm:min-w-[200px]">
                   <Search className="absolute inset-y-0 left-0 my-auto ml-3 h-4 w-4 text-stone-400" />
                   <input
                     type="text"
-                    placeholder="Search by student name or mobile..."
+                    placeholder="Search student or mobile..."
                     value={dirSearchQuery}
                     onChange={(e) => setDirSearchQuery(e.target.value)}
-                    className="w-full rounded-xl border border-[#d6c49f] bg-white pl-9 pr-3 py-1.5 text-xs text-[#382b20] focus:border-[#c49a45] focus:outline-hidden"
+                    className="w-full rounded-xl border border-[#d6c49f] bg-white pl-9 pr-3 py-2 text-xs text-[#382b20] focus:border-[#c49a45] focus:outline-hidden"
                   />
                 </div>
 
                 <select
                   value={dirFilterDept}
                   onChange={(e) => setDirFilterDept(e.target.value)}
-                  className="rounded-xl border border-[#d6c49f] bg-white px-3 py-1.5 text-xs text-[#5a4224]"
+                  className="w-full rounded-xl border border-[#d6c49f] bg-white px-3 py-2 text-xs text-[#5a4224] sm:w-auto"
                 >
                   <option value="All">All Departments</option>
                   {TKMCE_DEPARTMENTS.map((d) => (
@@ -811,7 +863,7 @@ export default function CoordinatorDashboardPage() {
                 <select
                   value={dirFilterYear}
                   onChange={(e) => setDirFilterYear(e.target.value)}
-                  className="rounded-xl border border-[#d6c49f] bg-white px-3 py-1.5 text-xs text-[#5a4224]"
+                  className="w-full rounded-xl border border-[#d6c49f] bg-white px-3 py-2 text-xs text-[#5a4224] sm:w-auto"
                 >
                   <option value="All">All Years</option>
                   {TKMCE_YEARS.map((y) => (
@@ -823,9 +875,49 @@ export default function CoordinatorDashboardPage() {
               </div>
             </div>
 
-            {/* Student Directory Table */}
+            {/* Student Directory Table & Mobile Cards */}
             <div className="overflow-hidden rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] shadow-2xs">
-              <div className="overflow-x-auto">
+              {/* Mobile Directory Card List (sm:hidden) */}
+              <div className="divide-y divide-[#eedebb]/70 sm:hidden">
+                {filteredDirectory.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-[#80613a]">
+                    No students found matching current filters.
+                  </div>
+                ) : (
+                  filteredDirectory.map((student, index) => (
+                    <div key={student.whatsappNumber} className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-serif font-bold text-sm text-[#382b20]">
+                          #{index + 1}. {student.fullName}
+                        </span>
+                        <a
+                          href={`https://wa.me/91${student.whatsappNumber}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800"
+                        >
+                          <MessageCircle className="h-3 w-3" />
+                          WhatsApp
+                        </a>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="rounded-md bg-[#f7f0df] px-2 py-0.5 text-[11px] font-semibold text-[#5a4224]">
+                          {student.department}
+                        </span>
+                        <span className="rounded-md bg-[#faefe0] px-2 py-0.5 text-[11px] font-medium text-[#7a5725]">
+                          {student.year}
+                        </span>
+                        <span className="font-mono text-[11px] text-stone-600">
+                          +91 {student.whatsappNumber}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Desktop Table (hidden sm:block) */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="border-b border-[#eedebb] bg-[#f7f0df] text-[#5a4224] uppercase">
                     <tr>
@@ -893,7 +985,7 @@ export default function CoordinatorDashboardPage() {
       {/* Start New Session Modal */}
       {showNewSessionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-6 shadow-xl">
+          <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-3xl border border-[#e8d8b4] bg-[#fcf9f1] p-6 shadow-xl">
             <h3 className="font-serif text-xl font-bold text-[#382b20]">
               Start New Darse Session
             </h3>
@@ -914,7 +1006,7 @@ export default function CoordinatorDashboardPage() {
                   onChange={(e) =>
                     setNewSessionForm({ ...newSessionForm, title: e.target.value })
                   }
-                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-xs text-[#382b20]"
+                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-xs text-[#382b20]"
                 />
               </div>
 
@@ -932,12 +1024,12 @@ export default function CoordinatorDashboardPage() {
                         sessionNumber: Number(e.target.value),
                       })
                     }
-                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-xs text-[#382b20]"
+                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-xs text-[#382b20]"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[#5a4224]">
-                    4-Digit Session PIN
+                    4-Digit PIN
                   </label>
                   <input
                     type="text"
@@ -946,7 +1038,7 @@ export default function CoordinatorDashboardPage() {
                     onChange={(e) =>
                       setNewSessionForm({ ...newSessionForm, sessionPin: e.target.value })
                     }
-                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-center font-mono text-xs font-bold text-[#382b20]"
+                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-center font-mono text-xs font-bold text-[#382b20]"
                   />
                 </div>
               </div>
@@ -961,7 +1053,7 @@ export default function CoordinatorDashboardPage() {
                   onChange={(e) =>
                     setNewSessionForm({ ...newSessionForm, speaker: e.target.value })
                   }
-                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-xs text-[#382b20]"
+                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-xs text-[#382b20]"
                 />
               </div>
 
@@ -975,7 +1067,7 @@ export default function CoordinatorDashboardPage() {
                   onChange={(e) =>
                     setNewSessionForm({ ...newSessionForm, date: e.target.value })
                   }
-                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-xs text-[#382b20]"
+                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-xs text-[#382b20]"
                 />
               </div>
 
@@ -983,13 +1075,13 @@ export default function CoordinatorDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowNewSessionModal(false)}
-                  className="rounded-xl border border-[#d6c49f] px-4 py-2 text-xs text-[#5a4224] hover:bg-[#f7f0df]"
+                  className="rounded-xl border border-[#d6c49f] px-4 py-2.5 text-xs text-[#5a4224] hover:bg-[#f7f0df]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-[#c49a45] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#b08734]"
+                  className="rounded-xl bg-[#c49a45] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-[#b08734]"
                 >
                   Create & Launch Live
                 </button>
@@ -1002,7 +1094,7 @@ export default function CoordinatorDashboardPage() {
       {/* Manual Add Student Modal (4 Clean Fields) */}
       {showManualAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-[#e8d8b4] bg-[#fcf9f1] p-6 shadow-xl">
+          <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-3xl border border-[#e8d8b4] bg-[#fcf9f1] p-6 shadow-xl">
             <h3 className="font-serif text-xl font-bold text-[#382b20]">
               Manual Student Check-In
             </h3>
@@ -1023,7 +1115,7 @@ export default function CoordinatorDashboardPage() {
                   onChange={(e) =>
                     setManualForm({ ...manualForm, fullName: e.target.value })
                   }
-                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-xs text-[#382b20]"
+                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-xs text-[#382b20]"
                 />
               </div>
 
@@ -1043,7 +1135,7 @@ export default function CoordinatorDashboardPage() {
                       whatsappNumber: e.target.value.replace(/\D/g, ""),
                     })
                   }
-                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-xs text-[#382b20]"
+                  className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-xs text-[#382b20]"
                 />
               </div>
 
@@ -1060,7 +1152,7 @@ export default function CoordinatorDashboardPage() {
                         department: e.target.value as Department,
                       })
                     }
-                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-xs text-[#382b20]"
+                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-xs text-[#382b20]"
                   >
                     {TKMCE_DEPARTMENTS.map((d) => (
                       <option key={d} value={d}>
@@ -1082,7 +1174,7 @@ export default function CoordinatorDashboardPage() {
                         year: e.target.value as StudentYear,
                       })
                     }
-                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2 text-xs text-[#382b20]"
+                    className="mt-1 block w-full rounded-xl border border-[#d6c49f] bg-white px-3.5 py-2.5 text-xs text-[#382b20]"
                   >
                     {TKMCE_YEARS.map((y) => (
                       <option key={y} value={y}>
@@ -1101,13 +1193,13 @@ export default function CoordinatorDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowManualAddModal(false)}
-                  className="rounded-xl border border-[#d6c49f] px-4 py-2 text-xs text-[#5a4224] hover:bg-[#f7f0df]"
+                  className="rounded-xl border border-[#d6c49f] px-4 py-2.5 text-xs text-[#5a4224] hover:bg-[#f7f0df]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-[#c49a45] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#b08734]"
+                  className="rounded-xl bg-[#c49a45] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-[#b08734]"
                 >
                   Record Attendance
                 </button>
